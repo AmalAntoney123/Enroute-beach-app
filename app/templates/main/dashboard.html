@@ -1,0 +1,303 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Profile Information</h5>
+                </div>
+                <div class="card-body text-center">
+                    <div class="profile-image-container mb-3">
+                        {% if current_user.profile_picture %}
+                            <img src="{{ url_for('static', filename='uploads/' + current_user.profile_picture) }}" 
+                                 class="rounded-circle profile-image" 
+                                 alt="Profile Picture">
+                        {% else %}
+                            <img src="{{ url_for('static', filename='images/default-profile.png') }}" 
+                                 class="rounded-circle profile-image" 
+                                 alt="Default Profile Picture">
+                        {% endif %}
+                    </div>
+                    <h4 class="mb-3">{{ current_user.username }}</h4>
+                    <p class="text-muted mb-1">{{ current_user.email }}</p>
+                    <p class="text-muted mb-3">Member since: {{ current_user.created_at.strftime('%B %d, %Y') }}</p>
+                    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#editProfileModal">
+                        <i class="fas fa-edit me-2"></i>Edit Profile
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-8">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+
+            <div class="card">
+                <div class="card-header">
+                    <ul class="nav nav-tabs card-header-tabs" id="dashboardTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="alerts-tab" data-bs-toggle="tab" 
+                                    data-bs-target="#alerts" type="button" role="tab" 
+                                    aria-controls="alerts" aria-selected="true">
+                                <i class="fas fa-bell me-2"></i>Alerts
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="accommodations-tab" data-bs-toggle="tab" 
+                                    data-bs-target="#accommodations" type="button" role="tab" 
+                                    aria-controls="accommodations" aria-selected="false">
+                                <i class="fas fa-home me-2"></i>Accommodations / Dining
+                            </button>
+                        </li>
+                    </ul>
+                </div>
+                <div class="card-body">
+                    <div class="tab-content" id="dashboardTabContent">
+                        <!-- Alerts Tab -->
+                        <div class="tab-pane fade show active" id="alerts" role="tabpanel" aria-labelledby="alerts-tab">
+                            <!-- Add Filter Form -->
+                            <div class="mb-3">
+                                <form id="alertFilterForm" class="row g-3">
+                                    <div class="col-md-5">
+                                        <select class="form-select" id="beachFilter" name="beach">
+                                            <option value="">All Beaches</option>
+                                            {% for beach in beaches %}
+                                                <option value="{{ beach._id }}">{{ beach.name }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                    <div class="col-md-5">
+                                        <select class="form-select" id="districtFilter" name="district">
+                                            <option value="">All Districts</option>
+                                            {% for beach in beaches %}
+                                                {% if beach.district not in districts %}
+                                                    <option value="{{ beach.district }}">{{ beach.district }}</option>
+                                                {% endif %}
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                    <div class="col-md-2">
+                                        <button type="button" class="btn btn-primary w-100" onclick="filterAlerts()">
+                                            <i class="fas fa-filter me-1"></i>Filter
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+
+                            <div id="alertsContainer">
+                                {% if alerts %}
+                                    {% for alert in alerts %}
+                                        <div class="alert alert-{{ alert.type }} mb-3">
+                                            <div class="d-flex justify-content-between align-items-center">
+                                                <div>
+                                                    <h6 class="alert-heading mb-1">{{ alert.beach_name }}</h6>
+                                                    <p class="mb-0">{{ alert.text }}</p>
+                                                    <small class="text-muted">
+                                                        Severity: {{ alert.severity | title }} | 
+                                                        Expires: {{ alert.expires_at.strftime('%Y-%m-%d %H:%M') }}
+                                                    </small>
+                                                </div>
+                                                <span class="badge bg-{{ 'danger' if alert.severity == 'high' else 'warning' if alert.severity == 'medium' else 'info' }}">
+                                                    {{ alert.severity | title }}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    {% endfor %}
+                                {% else %}
+                                    <div class="text-center text-muted py-4">
+                                        <i class="fas fa-bell-slash fa-3x mb-3"></i>
+                                        <p>No active alerts at this time</p>
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        <!-- Accommodations Tab -->
+                        <div class="tab-pane fade" id="accommodations" role="tabpanel" aria-labelledby="accommodations-tab">
+                            {% if accommodations %}
+                                <div class="row">
+                                    {% for accommodation in accommodations %}
+                                        <div class="col-md-6 mb-3">
+                                            <div class="card h-100">
+                                                {% if accommodation.image %}
+                                                    <img src="{{ url_for('static', filename='uploads/' + accommodation.image) }}" 
+                                                         class="card-img-top accommodation-img" alt="{{ accommodation.name }}">
+                                                {% endif %}
+                                                <div class="card-body">
+                                                    <h5 class="card-title">{{ accommodation.name }}</h5>
+                                                    <p class="card-text text-muted">{{ accommodation.location }}</p>
+                                                    <p class="card-text">{{ accommodation.description[:100] }}...</p>
+                                                    <div class="d-flex justify-content-between align-items-center">
+                                                        <span class="badge bg-primary">₹{{ accommodation.price }}/night</span>
+                                                        <a href="{{ url_for('main.accommodation_detail', id=accommodation._id) }}" 
+                                                           class="btn btn-outline-primary btn-sm">View Details</a>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    {% endfor %}
+                                </div>
+                            {% else %}
+                                <div class="text-center text-muted py-4">
+                                    <i class="fas fa-home fa-3x mb-3"></i>
+                                    <p>No accommodations found</p>
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Profile Modal -->
+<div class="modal fade" id="editProfileModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Edit Profile</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="{{ url_for('main.update_profile') }}" method="POST" enctype="multipart/form-data">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="username" class="form-label">Username</label>
+                        <input type="text" class="form-control" id="username" name="username" 
+                               value="{{ current_user.username }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="email" class="form-label">Email</label>
+                        <input type="email" class="form-control" id="email" name="email" 
+                               value="{{ current_user.email }}" readonly disabled>
+                        <small class="text-muted">Email cannot be changed</small>
+                    </div>
+                    <div class="mb-3">
+                        <label for="profile_picture" class="form-label">Profile Picture</label>
+                        <input type="file" class="form-control" id="profile_picture" name="profile_picture" 
+                               accept="image/*">
+                    </div>
+                    <div class="mb-3">
+                        <label for="current_password" class="form-label">Current Password</label>
+                        <input type="password" class="form-control" id="current_password" name="current_password">
+                    </div>
+                    <div class="mb-3">
+                        <label for="new_password" class="form-label">New Password (leave blank to keep current)</label>
+                        <input type="password" class="form-control" id="new_password" name="new_password">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="submit" class="btn btn-primary">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<style>
+.profile-image-container {
+    position: relative;
+    width: 150px;
+    height: 150px;
+    margin: 0 auto;
+}
+
+.profile-image {
+    width: 150px;
+    height: 150px;
+    object-fit: cover;
+    border: 3px solid #fff;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+
+.card {
+    border: none;
+    box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    margin-bottom: 20px;
+}
+
+.card-header {
+    background-color: #fff;
+    border-bottom: 1px solid rgba(0,0,0,0.1);
+    padding: 1rem;
+}
+
+.card-body {
+    padding: 1.5rem;
+}
+
+.accommodation-img {
+    height: 200px;
+    object-fit: cover;
+}
+
+.nav-tabs .nav-link {
+    color: #495057;
+    border: none;
+    padding: 1rem 1.5rem;
+}
+
+.nav-tabs .nav-link:hover {
+    border: none;
+    color: #007bff;
+}
+
+.nav-tabs .nav-link.active {
+    color: #007bff;
+    background: none;
+    border: none;
+    border-bottom: 2px solid #007bff;
+}
+</style>
+
+<script>
+function filterAlerts() {
+    const beach = document.getElementById('beachFilter').value;
+    const district = document.getElementById('districtFilter').value;
+    
+    fetch(`${window.location.pathname}?beach=${beach}&district=${district}`)
+        .then(response => response.json())
+        .then(data => {
+            const container = document.getElementById('alertsContainer');
+            if (data.alerts && data.alerts.length > 0) {
+                container.innerHTML = data.alerts.map(alert => `
+                    <div class="alert alert-${alert.type} mb-3">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="alert-heading mb-1">${alert.beach_name}</h6>
+                                <p class="mb-0">${alert.text}</p>
+                                <small class="text-muted">
+                                    Severity: ${alert.severity.charAt(0).toUpperCase() + alert.severity.slice(1)} | 
+                                    Expires: ${new Date(alert.expires_at).toLocaleString()}
+                                </small>
+                            </div>
+                            <span class="badge bg-${alert.severity === 'high' ? 'danger' : alert.severity === 'medium' ? 'warning' : 'info'}">
+                                ${alert.severity.charAt(0).toUpperCase() + alert.severity.slice(1)}
+                            </span>
+                        </div>
+                    </div>
+                `).join('');
+            } else {
+                container.innerHTML = `
+                    <div class="text-center text-muted py-4">
+                        <i class="fas fa-bell-slash fa-3x mb-3"></i>
+                        <p>No active alerts match your filters</p>
+                    </div>
+                `;
+            }
+        })
+        .catch(error => console.error('Error:', error));
+}
+</script>
+{% endblock %} 

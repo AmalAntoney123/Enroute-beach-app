@@ -1,0 +1,182 @@
+{% extends "admin/base.html" %}
+
+{% block admin_content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h2>Beach Management</h2>
+    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addBeachModal">
+        <i class="fas fa-plus me-2"></i>Add New Beach
+    </button>
+</div>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+        {% for category, message in messages %}
+            <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+{% endwith %}
+
+<div class="card">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Beach Name</th>
+                        <th>Location</th>
+                        <th>District</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for beach in beaches %}
+                    <tr>
+                        <td>{{ beach.name }}</td>
+                        <td>{{ beach.location }}</td>
+                        <td>{{ beach.district }}</td>
+                        <td>
+                            <span class="badge bg-{{ 'success' if beach.is_active else 'danger' }}">
+                                {{ 'Active' if beach.is_active else 'Inactive' }}
+                            </span>
+                        </td>
+                        <td>
+                            <button class="btn btn-sm btn-primary" 
+                                    data-bs-toggle="modal" 
+                                    data-bs-target="#editBeachModal{{ beach._id }}">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button class="btn btn-sm btn-{{ 'danger' if beach.is_active else 'success' }}"
+                                    onclick="toggleBeachStatus('{{ beach._id }}')">
+                                <i class="fas fa-{{ 'ban' if beach.is_active else 'check' }}"></i>
+                            </button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Add Beach Modal -->
+<div class="modal fade" id="addBeachModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Add New Beach</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="{{ url_for('admin.add_beach') }}" method="POST">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="beach_name" class="form-label">Beach Name</label>
+                        <input type="text" class="form-control" id="beach_name" name="beach_name" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="location" class="form-label">Location</label>
+                        <input type="text" class="form-control" id="location" name="location" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="district" class="form-label">District</label>
+                        <select class="form-select" id="district" name="district" required>
+                            <option value="">Select District</option>
+                            <option value="Kasaragod">Kasaragod</option>
+                            <option value="Kannur">Kannur</option>
+                            <option value="Kozhikode">Kozhikode</option>
+                            <option value="Malappuram">Malappuram</option>
+                            <option value="Thrissur">Thrissur</option>
+                            <option value="Ernakulam">Ernakulam</option>
+                            <option value="Alappuzha">Alappuzha</option>
+                            <option value="Kollam">Kollam</option>
+                            <option value="Thiruvananthapuram">Thiruvananthapuram</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="description" class="form-label">Description</label>
+                        <textarea class="form-control" id="description" name="description" rows="3"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="submit" class="btn btn-primary">Add Beach</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% for beach in beaches %}
+<!-- Edit Beach Modal -->
+<div class="modal fade" id="editBeachModal{{ beach._id }}" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Edit Beach</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="{{ url_for('admin.edit_beach', beach_id=beach._id) }}" method="POST">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="beach_name{{ beach._id }}" class="form-label">Beach Name</label>
+                        <input type="text" class="form-control" id="beach_name{{ beach._id }}" 
+                               name="beach_name" value="{{ beach.name }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="location{{ beach._id }}" class="form-label">Location</label>
+                        <input type="text" class="form-control" id="location{{ beach._id }}" 
+                               name="location" value="{{ beach.location }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="district{{ beach._id }}" class="form-label">District</label>
+                        <select class="form-select" id="district{{ beach._id }}" name="district" required>
+                            {% for district in ['Kasaragod', 'Kannur', 'Kozhikode', 'Malappuram', 'Thrissur', 
+                                              'Ernakulam', 'Alappuzha', 'Kollam', 'Thiruvananthapuram'] %}
+                                <option value="{{ district }}" {{ 'selected' if district == beach.district }}>
+                                    {{ district }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="description{{ beach._id }}" class="form-label">Description</label>
+                        <textarea class="form-control" id="description{{ beach._id }}" 
+                                  name="description" rows="3">{{ beach.description }}</textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="submit" class="btn btn-primary">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endfor %}
+
+<script>
+function toggleBeachStatus(beachId) {
+    fetch(`/admin/beach/${beachId}/toggle-status`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert('Error updating beach status');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error updating beach status');
+    });
+}
+</script>
+{% endblock %} 

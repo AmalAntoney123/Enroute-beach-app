@@ -1,0 +1,184 @@
+{% extends "base.html" %}
+
+{% block title %}Home{% endblock %}
+
+{% block extra_css %}
+<style>
+    .hero-section {
+        background: linear-gradient(rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.5)),
+                    url('https://images.unsplash.com/photo-1507525428034-b723cf961d3e');
+        background-size: cover;
+        background-position: center;
+        color: white;
+        padding: 100px 0;
+        margin-bottom: 2rem;
+    }
+
+    .feature-card {
+        border: none;
+        border-radius: 10px;
+        transition: transform 0.3s;
+        margin-bottom: 20px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+
+    .feature-card:hover {
+        transform: translateY(-5px);
+    }
+
+    .beach-card {
+        position: relative;
+        overflow: hidden;
+        border-radius: 10px;
+        margin-bottom: 20px;
+    }
+
+    .beach-card img {
+        width: 100%;
+        height: 250px;
+        object-fit: cover;
+    }
+
+    .beach-overlay {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        background: linear-gradient(transparent, rgba(0, 0, 0, 0.8));
+        padding: 20px;
+        color: white;
+    }
+
+    .safety-alert {
+        background-color: #ff6b6b;
+        color: white;
+        padding: 10px;
+        border-radius: 5px;
+        margin-bottom: 20px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="hero-section text-center">
+    <div class="container">
+        <h1 class="display-4 mb-4">Discover Kerala's Coastal Paradise</h1>
+        <p class="lead mb-4">Real-time updates, safety alerts, and local insights for the best beach experiences</p>
+        <a href="#explore" class="btn btn-primary btn-lg">Start Exploring</a>
+    </div>
+</div>
+
+<div class="container">
+    <!-- Safety Alert Section -->
+    {% if latest_alert %}
+    <div class="safety-alert mb-4">
+        <div class="d-flex align-items-center">
+            <i class="fas fa-exclamation-triangle me-3 fa-2x"></i>
+            <div>
+                <h5 class="mb-1">Safety Alert - {{ latest_alert.beach_name }}</h5>
+                <p class="mb-0">{{ latest_alert.text }}</p>
+                <small class="text-muted">
+                    Severity: {{ latest_alert.severity | title }} | 
+                    Expires: {{ latest_alert.expires_at.strftime('%Y-%m-%d %H:%M') }}
+                </small>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Featured Beaches Section -->
+    <h2 class="text-center mb-4">Featured Destinations</h2>
+    <div class="row">
+        <div class="col-md-6 col-lg-3">
+            <div class="beach-card">
+                <img src="https://images.unsplash.com/photo-1507525428034-b723cf961d3e" alt="Kozhikode Beach">
+                <div class="beach-overlay">
+                    <h5>Kozhikode Beach</h5>
+                    <p class="mb-0"><i class="fas fa-sun me-2"></i>28°C</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6 col-lg-3">
+            <div class="beach-card">
+                <img src="https://images.unsplash.com/photo-1519046904884-53103b34b206" alt="Kannur Beach">
+                <div class="beach-overlay">
+                    <h5>Kannur Beach</h5>
+                    <p class="mb-0"><i class="fas fa-sun me-2"></i>27°C</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6 col-lg-3">
+            <div class="beach-card">
+                <img src="https://images.unsplash.com/photo-1506953823976-52e1fdc0149a" alt="Alappuzha Beach">
+                <div class="beach-overlay">
+                    <h5>Alappuzha Beach</h5>
+                    <p class="mb-0"><i class="fas fa-cloud me-2"></i>26°C</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6 col-lg-3">
+            <div class="beach-card">
+                <img src="https://images.unsplash.com/photo-1544644181-1484b3fdfc62" alt="Kochi Beach">
+                <div class="beach-overlay">
+                    <h5>Kochi Beach</h5>
+                    <p class="mb-0"><i class="fas fa-cloud-sun me-2"></i>29°C</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Features Section -->
+    <h2 class="text-center my-5">Our Features</h2>
+    <div class="row">
+        <div class="col-md-4">
+            <div class="card feature-card">
+                <div class="card-body text-center">
+                    <i class="fas fa-exclamation-circle fa-3x mb-3 text-primary"></i>
+                    <h5 class="card-title">Safety Alerts</h5>
+                    <p class="card-text">Real-time notifications about weather conditions and safety tips for coastal activities.</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card feature-card">
+                <div class="card-body text-center">
+                    <i class="fas fa-hotel fa-3x mb-3 text-primary"></i>
+                    <h5 class="card-title">Accommodation</h5>
+                    <p class="card-text">Find the perfect stay with our curated list of hotels and resorts near the beach.</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card feature-card">
+                <div class="card-body text-center">
+                    <i class="fas fa-utensils fa-3x mb-3 text-primary"></i>
+                    <h5 class="card-title">Dining</h5>
+                    <p class="card-text">Discover local cuisine with our recommended restaurants and cafes.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Alerts Section -->
+    <h2 class="text-center my-5">Current Alerts</h2>
+    {% if alerts %}
+        {% for alert in alerts %}
+            <div class="alert alert-{{ alert.type }} mb-3">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="alert-heading mb-1">{{ alert.beach_name }}</h6>
+                        <p class="mb-0">{{ alert.text }}</p>
+                        <small class="text-muted">
+                            Severity: {{ alert.severity | title }} | 
+                            Expires: {{ alert.expires_at.strftime('%Y-%m-%d %H:%M') }}
+                        </small>
+                    </div>
+                    <span class="badge bg-{{ alert.type }}">{{ alert.type | title }}</span>
+                </div>
+            </div>
+        {% endfor %}
+    {% else %}
+        <p>No current alerts.</p>
+    {% endif %}
+</div>
+{% endblock %} 
