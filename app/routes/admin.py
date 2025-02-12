@@ -99,10 +99,6 @@ def manage_alerts():
     # Get current time in UTC
     current_time = datetime.now(timezone.utc)
     
-    # Convert to IST for comparison (UTC+5:30)
-    ist_offset = timedelta(hours=5, minutes=30)
-    current_time_ist = current_time + ist_offset
-    
     beaches = list(mongo.db.beaches.find({'is_active': True}))
     alerts = list(mongo.db.alerts.find().sort('created_at', -1))
     
@@ -112,14 +108,15 @@ def manage_alerts():
         # Convert string datetime to datetime object if needed
         if isinstance(alert['expires_at'], str):
             try:
-                # Parse the expiry time and make it timezone-aware
-                alert['expires_at'] = datetime.strptime(alert['expires_at'], '%Y-%m-%d %H:%M')
-                alert['expires_at'] = alert['expires_at'].replace(tzinfo=timezone(ist_offset))
+                # Parse the expiry time and make it timezone-aware as IST
+                expires_at = datetime.strptime(alert['expires_at'], '%Y-%m-%d %H:%M')
+                ist_offset = timedelta(hours=5, minutes=30)
+                alert['expires_at'] = expires_at.replace(tzinfo=timezone(ist_offset))
             except ValueError:
                 alert['expires_at'] = datetime.fromisoformat(alert['expires_at'].replace('Z', '+00:00'))
         
-        # Compare times in IST
-        is_expired = alert['expires_at'].astimezone(timezone(ist_offset)) <= current_time_ist
+        # Compare with current UTC time
+        is_expired = alert['expires_at'].astimezone(timezone.utc) <= current_time
         
         if is_expired:
             # Update database

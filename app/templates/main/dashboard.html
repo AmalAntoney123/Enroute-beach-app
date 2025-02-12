@@ -44,115 +44,29 @@
 
             <div class="card">
                 <div class="card-header">
-                    <ul class="nav nav-tabs card-header-tabs" id="dashboardTabs" role="tablist">
-                        <li class="nav-item" role="presentation">
-                            <button class="nav-link active" id="alerts-tab" data-bs-toggle="tab" 
-                                    data-bs-target="#alerts" type="button" role="tab" 
-                                    aria-controls="alerts" aria-selected="true">
+                    <ul class="nav nav-tabs card-header-tabs">
+                        <li class="nav-item">
+                            <a class="nav-link active" id="alerts-tab" data-bs-toggle="tab" href="#alerts" role="tab">
                                 <i class="fas fa-bell me-2"></i>Alerts
-                            </button>
+                            </a>
                         </li>
-                        <li class="nav-item" role="presentation">
-                            <button class="nav-link" id="accommodations-tab" data-bs-toggle="tab" 
-                                    data-bs-target="#accommodations" type="button" role="tab" 
-                                    aria-controls="accommodations" aria-selected="false">
-                                <i class="fas fa-home me-2"></i>Accommodations / Dining
-                            </button>
+                        <li class="nav-item">
+                            <a class="nav-link" id="accommodations-tab" data-bs-toggle="tab" href="#accommodations" role="tab">
+                                <i class="fas fa-home me-2"></i>Accommodations
+                            </a>
                         </li>
                     </ul>
                 </div>
                 <div class="card-body">
-                    <div class="tab-content" id="dashboardTabContent">
+                    <div class="tab-content">
                         <!-- Alerts Tab -->
-                        <div class="tab-pane fade show active" id="alerts" role="tabpanel" aria-labelledby="alerts-tab">
-                            <!-- Add Filter Form -->
-                            <div class="mb-3">
-                                <form id="alertFilterForm" class="row g-3">
-                                    <div class="col-md-5">
-                                        <select class="form-select" id="beachFilter" name="beach">
-                                            <option value="">All Beaches</option>
-                                            {% for beach in beaches %}
-                                                <option value="{{ beach._id }}">{{ beach.name }}</option>
-                                            {% endfor %}
-                                        </select>
-                                    </div>
-                                    <div class="col-md-5">
-                                        <select class="form-select" id="districtFilter" name="district">
-                                            <option value="">All Districts</option>
-                                            {% for beach in beaches %}
-                                                {% if beach.district not in districts %}
-                                                    <option value="{{ beach.district }}">{{ beach.district }}</option>
-                                                {% endif %}
-                                            {% endfor %}
-                                        </select>
-                                    </div>
-                                    <div class="col-md-2">
-                                        <button type="button" class="btn btn-primary w-100" onclick="filterAlerts()">
-                                            <i class="fas fa-filter me-1"></i>Filter
-                                        </button>
-                                    </div>
-                                </form>
-                            </div>
-
-                            <div id="alertsContainer">
-                                {% if alerts %}
-                                    {% for alert in alerts %}
-                                        <div class="alert alert-{{ alert.type }} mb-3">
-                                            <div class="d-flex justify-content-between align-items-center">
-                                                <div>
-                                                    <h6 class="alert-heading mb-1">{{ alert.beach_name }}</h6>
-                                                    <p class="mb-0">{{ alert.text }}</p>
-                                                    <small class="text-muted">
-                                                        Severity: {{ alert.severity | title }} | 
-                                                        Expires: {{ alert.expires_at.strftime('%Y-%m-%d %H:%M') }}
-                                                    </small>
-                                                </div>
-                                                <span class="badge bg-{{ 'danger' if alert.severity == 'high' else 'warning' if alert.severity == 'medium' else 'info' }}">
-                                                    {{ alert.severity | title }}
-                                                </span>
-                                            </div>
-                                        </div>
-                                    {% endfor %}
-                                {% else %}
-                                    <div class="text-center text-muted py-4">
-                                        <i class="fas fa-bell-slash fa-3x mb-3"></i>
-                                        <p>No active alerts at this time</p>
-                                    </div>
-                                {% endif %}
-                            </div>
+                        <div class="tab-pane fade show active" id="alerts" role="tabpanel">
+                            {% include 'main/includes/_alerts.html' %}
                         </div>
-                        
+
                         <!-- Accommodations Tab -->
-                        <div class="tab-pane fade" id="accommodations" role="tabpanel" aria-labelledby="accommodations-tab">
-                            {% if accommodations %}
-                                <div class="row">
-                                    {% for accommodation in accommodations %}
-                                        <div class="col-md-6 mb-3">
-                                            <div class="card h-100">
-                                                {% if accommodation.image %}
-                                                    <img src="{{ url_for('static', filename='uploads/' + accommodation.image) }}" 
-                                                         class="card-img-top accommodation-img" alt="{{ accommodation.name }}">
-                                                {% endif %}
-                                                <div class="card-body">
-                                                    <h5 class="card-title">{{ accommodation.name }}</h5>
-                                                    <p class="card-text text-muted">{{ accommodation.location }}</p>
-                                                    <p class="card-text">{{ accommodation.description[:100] }}...</p>
-                                                    <div class="d-flex justify-content-between align-items-center">
-                                                        <span class="badge bg-primary">₹{{ accommodation.price }}/night</span>
-                                                        <a href="{{ url_for('main.accommodation_detail', id=accommodation._id) }}" 
-                                                           class="btn btn-outline-primary btn-sm">View Details</a>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    {% endfor %}
-                                </div>
-                            {% else %}
-                                <div class="text-center text-muted py-4">
-                                    <i class="fas fa-home fa-3x mb-3"></i>
-                                    <p>No accommodations found</p>
-                                </div>
-                            {% endif %}
+                        <div class="tab-pane fade" id="accommodations" role="tabpanel">
+                            {% include 'main/includes/_accommodations.html' %}
                         </div>
                     </div>
                 </div>

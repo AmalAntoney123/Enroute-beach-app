@@ -1,0 +1,113 @@
+<!-- Add Filter Form -->
+<div class="mb-3">
+    <!-- <form id="alertFilterForm" class="row g-3">
+        <div class="col-md-5">
+            <select class="form-select" id="beachFilter" name="beach">
+                <option value="">All Beaches</option>
+                {% for beach in beaches %}
+                    <option value="{{ beach._id }}">{{ beach.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-5">
+            <select class="form-select" id="districtFilter" name="district">
+                <option value="">All Districts</option>
+                {% for district in districts %}
+                    <option value="{{ district }}">{{ district }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-2">
+            <button type="button" class="btn btn-primary w-100" onclick="filterAlerts()">
+                <i class="fas fa-filter me-1"></i>Filter
+            </button>
+        </div>
+    </form> -->
+</div>
+
+<div id="alertsContainer">
+    {% if alerts %}
+        {% for alert in alerts %}
+            <div class="alert alert-{{ alert.type }} mb-3">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="alert-heading mb-1">{{ alert.beach_name }}</h6>
+                        <p class="mb-0">{{ alert.text }}</p>
+                        <small class="text-muted">
+                            Severity: {{ alert.severity | title }} | 
+                            Expires: {{ alert.expires_at.strftime('%Y-%m-%d %H:%M') }}
+                        </small>
+                    </div>
+                    <span class="badge bg-{{ 'danger' if alert.severity == 'high' else 'warning' if alert.severity == 'medium' else 'info' }}">
+                        {{ alert.severity | title }}
+                    </span>
+                </div>
+            </div>
+        {% endfor %}
+    {% else %}
+        <div class="text-center text-muted py-4">
+            <i class="fas fa-bell-slash fa-3x mb-3"></i>
+            <p>No active alerts at this time</p>
+        </div>
+    {% endif %}
+</div>
+
+<script>
+function filterAlerts() {
+    const beach = document.getElementById('beachFilter').value;
+    const district = document.getElementById('districtFilter').value;
+    
+    fetch(`${window.location.pathname}?beach=${beach}&district=${district}`, {
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            return response.json();
+        })
+        .then(data => {
+            const container = document.getElementById('alertsContainer');
+            if (data.alerts && data.alerts.length > 0) {
+                container.innerHTML = data.alerts.map(alert => {
+                    const alertId = typeof alert._id === 'object' ? alert._id.$oid : alert._id;
+                    return `
+                        <div class="alert alert-${alert.type} mb-3">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h6 class="alert-heading mb-1">${alert.beach_name}</h6>
+                                    <p class="mb-0">${alert.text}</p>
+                                    <small class="text-muted">
+                                        Severity: ${alert.severity.charAt(0).toUpperCase() + alert.severity.slice(1)} | 
+                                        Expires: ${new Date(alert.expires_at).toLocaleString()}
+                                    </small>
+                                </div>
+                                <span class="badge bg-${alert.severity === 'high' ? 'danger' : alert.severity === 'medium' ? 'warning' : 'info'}">
+                                    ${alert.severity.charAt(0).toUpperCase() + alert.severity.slice(1)}
+                                </span>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            } else {
+                container.innerHTML = `
+                    <div class="text-center text-muted py-4">
+                        <i class="fas fa-bell-slash fa-3x mb-3"></i>
+                        <p>No active alerts match your filters</p>
+                    </div>
+                `;
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            const container = document.getElementById('alertsContainer');
+            container.innerHTML = `
+                <div class="alert alert-danger">
+                    <p>Error loading alerts. Please try again.</p>
+                </div>
+            `;
+        });
+}
+</script> 

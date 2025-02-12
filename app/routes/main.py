@@ -41,6 +41,47 @@ def dashboard():
     beach_filter = request.args.get('beach')
     district_filter = request.args.get('district')
     
+    # Base query for alerts
+    query = {'is_active': True}
+    
+    # Add filters if provided
+    if beach_filter:
+        query['beach_id'] = beach_filter
+    if district_filter:
+        # Get all beaches in the selected district
+        beach_ids = [str(beach['_id']) for beach in mongo.db.beaches.find({'district': district_filter})]
+        if beach_ids:
+            query['beach_id'] = {'$in': beach_ids}
+    
+    # Get data
+    alerts = list(mongo.db.alerts.find(query).sort('created_at', -1))
+    
+    # If it's an AJAX request, return JSON
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        # Prepare alerts for JSON serialization
+        for alert in alerts:
+            alert['_id'] = str(alert['_id'])
+            if isinstance(alert['expires_at'], datetime):
+                alert['expires_at'] = alert['expires_at'].isoformat()
+        return jsonify({'alerts': alerts})
+    
+    # For regular requests, get the data for the template
+    beaches = list(mongo.db.beaches.find({'is_active': True}))
+    accommodations = list(mongo.db.accommodations.find({'is_active': True}))
+    districts = sorted(list({beach.get('district') for beach in beaches if beach.get('district')}))
+    
+    return render_template('main/dashboard.html',
+                         alerts=alerts,
+                         beaches=beaches,
+                         districts=districts,
+                         accommodations=accommodations)
+
+@main_bp.route('/alerts')
+@login_required
+def alerts():
+    beach_filter = request.args.get('beach')
+    district_filter = request.args.get('district')
+    
     # Base query
     query = {'is_active': True}
     
@@ -48,27 +89,36 @@ def dashboard():
     if beach_filter:
         query['beach_id'] = beach_filter
     if district_filter:
-        # First get beach IDs for the selected district
+        # Get all beaches in the selected district
         beach_ids = [str(beach['_id']) for beach in mongo.db.beaches.find({'district': district_filter})]
-        query['beach_id'] = {'$in': beach_ids}
+        if beach_ids:
+            query['beach_id'] = {'$in': beach_ids}
     
     # Get alerts with filters
     alerts = list(mongo.db.alerts.find(query).sort('created_at', -1))
-    beaches = list(mongo.db.beaches.find({'is_active': True}))
-    accommodations = list(mongo.db.accommodations.find({'is_active': True}))
     
-    # If it's an AJAX request, return JSON
+    # If it's an AJAX request, prepare the alerts for JSON serialization
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        for alert in alerts:
+            alert['_id'] = str(alert['_id'])
+            if isinstance(alert['expires_at'], datetime):
+                alert['expires_at'] = alert['expires_at'].isoformat()
         return jsonify({'alerts': alerts})
     
-    # Create a set of unique districts
-    districts = set(beach['district'] for beach in beaches)
+    # For regular requests, get the data for the template
+    beaches = list(mongo.db.beaches.find({'is_active': True}))
+    districts = sorted(list({beach.get('district') for beach in beaches if beach.get('district')}))
     
-    return render_template('main/dashboard.html', 
-                         alerts=alerts, 
-                         accommodations=accommodations,
+    return render_template('main/alerts.html', 
+                         alerts=alerts,
                          beaches=beaches,
                          districts=districts)
+
+@main_bp.route('/accommodations')
+@login_required
+def accommodations():
+    accommodations = list(mongo.db.accommodations.find({'is_active': True}))
+    return render_template('main/accommodations.html', accommodations=accommodations)
 
 @main_bp.route('/update_profile', methods=['POST'])
 @login_required
