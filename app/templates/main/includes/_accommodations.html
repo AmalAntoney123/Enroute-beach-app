@@ -1,4 +1,18 @@
-{% if accommodations %}
+    <!-- Beach Search -->
+    <div class="mb-4">
+        <div class="input-group">
+            <select class="form-select" id="beachSearch">
+                <option value="">Select a beach</option>
+                {% for beach in beaches %}
+                    <option value="{{ beach.name }}">{{ beach.name }}</option>
+                {% endfor %}
+            </select>
+            <button class="btn btn-primary" type="button" onclick="searchNearbyPlaces()">
+                <i class="fas fa-search me-2"></i>Search
+            </button>
+        </div>
+    </div>
+
     <div class="row">
         {% for accommodation in accommodations %}
             <div class="col-md-6 mb-3">
@@ -21,9 +35,528 @@
             </div>
         {% endfor %}
     </div>
-{% else %}
-    <div class="text-center text-muted py-4">
-        <i class="fas fa-home fa-3x mb-3"></i>
-        <p>No accommodations found</p>
+
+    <!-- Nearby Places Section -->
+    <div class="mt-4" id="nearbyPlacesSection" style="display: none;">
+        <h4 class="mb-3">Nearby Places</h4>
+        <div class="row">
+            <div class="col-md-6">
+                <div class="card mb-3">
+                    <div class="card-header">
+                        <h5 class="mb-0"><i class="fas fa-hotel me-2"></i>Hotels</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="hotelsList" class="list-group list-group-flush">
+                            <div class="text-center py-3">
+                                <div class="spinner-border text-primary" role="status">
+                                    <span class="visually-hidden">Loading...</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card mb-3">
+                    <div class="card-header">
+                        <h5 class="mb-0"><i class="fas fa-utensils me-2"></i>Restaurants</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="restaurantsList" class="list-group list-group-flush">
+                            <div class="text-center py-3">
+                                <div class="spinner-border text-primary" role="status">
+                                    <span class="visually-hidden">Loading...</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
-{% endif %} 
+
+    <!-- Update Modal Content -->   
+    <div class="modal fade" id="directionsModal" tabindex="-1" aria-labelledby="directionsModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="directionsModalLabel">
+                        <i class="fas fa-directions me-2"></i>Get Directions
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <!-- Add Leaflet CSS -->
+                    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+                        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+                        crossorigin=""/>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-body">
+                                    <h6 class="card-title">Destination</h6>
+                                    <p class="mb-0" id="destinationName"></p>
+                                    <small class="text-muted" id="destinationCoords"></small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-body">
+                                    <div class="mb-3">
+                                        <label for="travelMode" class="form-label">Travel Mode</label>
+                                        <select class="form-select" id="travelMode" onchange="updateDirectionsRoute()">
+                                            <option value="driving">Driving</option>
+                                            <option value="walking">Walking</option>
+                                            <option value="bicycling">Bicycling</option>
+                                        </select>
+                                    </div>
+                                    <button onclick="openGoogleMaps()" class="btn btn-primary w-100">
+                                        <i class="fab fa-google me-2"></i>Open in Google Maps
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="directionsMap" style="height: 450px; position: relative;">
+                        <div id="mapLoader" class="map-loader">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    async function fetchNearbyPlaces(beachName, type) {
+        const query = encodeURIComponent(`${beachName}, Kerala, India`);
+        const nominatimUrl = `https://nominatim.openstreetmap.org/search?q=${query}&format=json&limit=1`;
+
+        try {
+            console.log('Searching for location:', query);
+            
+            // First get the coordinates for the beach
+            const locationResponse = await fetch(nominatimUrl, {
+                headers: {
+                    'User-Agent': 'EnrouteApp/1.0'
+                }
+            });
+            const locationData = await locationResponse.json();
+
+            if (locationData.length === 0) {
+                throw new Error('Location not found');
+            }
+
+            const { lat, lon } = locationData[0];
+            console.log('Found coordinates:', lat, lon);
+
+            // Then search for nearby amenities using Overpass API
+            let overpassQuery;
+            if (type === 'hotel') {
+                overpassQuery = `
+                    [out:json][timeout:25];
+                    (
+                        node["tourism"="hotel"](around:5000,${lat},${lon});
+                        way["tourism"="hotel"](around:5000,${lat},${lon});
+                        node["tourism"="guest_house"](around:5000,${lat},${lon});
+                        way["tourism"="guest_house"](around:5000,${lat},${lon});
+                        node["tourism"="hostel"](around:5000,${lat},${lon});
+                        way["tourism"="hostel"](around:5000,${lat},${lon});
+                        node["tourism"="apartment"](around:5000,${lat},${lon});
+                        way["tourism"="apartment"](around:5000,${lat},${lon});
+                        node["building"="hotel"](around:5000,${lat},${lon});
+                        way["building"="hotel"](around:5000,${lat},${lon});
+                    );
+                    out body;
+                    >;
+                    out skel qt;
+                `;
+            } else {
+                overpassQuery = `
+                    [out:json][timeout:25];
+                    (
+                        node["amenity"="restaurant"](around:5000,${lat},${lon});
+                        way["amenity"="restaurant"](around:5000,${lat},${lon});
+                        node["amenity"="cafe"](around:5000,${lat},${lon});
+                        way["amenity"="cafe"](around:5000,${lat},${lon});
+                    );
+                    out body;
+                    >;
+                    out skel qt;
+                `;
+            }
+
+            const overpassUrl = 'https://overpass-api.de/api/interpreter';
+            const response = await fetch(overpassUrl, {
+                method: 'POST',
+                body: overpassQuery
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to fetch nearby places');
+            }
+
+            const data = await response.json();
+            return data.elements
+                .filter(element => element.tags && element.tags.name)
+                .map(element => ({
+                    name: element.tags.name,
+                    cuisine: element.tags.cuisine,
+                    stars: element.tags.stars,
+                    rating: element.tags['stars'] || element.tags['rating'] || null,
+                    lat: element.lat || (element.center && element.center.lat),
+                    lon: element.lon || (element.center && element.center.lon),
+                    type: element.tags.tourism || element.tags.amenity || 'unknown'
+                }))
+                .filter(place => place.lat && place.lon) // Ensure we have coordinates
+                .slice(0, 10); // Show up to 10 results
+        } catch (error) {
+            console.error('Error fetching nearby places:', error);
+            throw error;
+        }
+    }
+
+    async function searchNearbyPlaces() {
+        const beachName = document.getElementById('beachSearch').value.trim();
+        if (!beachName) {
+            alert('Please enter a beach name');
+            return;
+        }
+
+        const nearbyPlacesSection = document.getElementById('nearbyPlacesSection');
+        const hotelsList = document.getElementById('hotelsList');
+        const restaurantsList = document.getElementById('restaurantsList');
+
+        // Show loading state
+        nearbyPlacesSection.style.display = 'block';
+        const loadingHTML = `
+            <div class="text-center py-3">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+            </div>
+        `;
+        hotelsList.innerHTML = loadingHTML;
+        restaurantsList.innerHTML = loadingHTML;
+
+        try {
+            // Fetch hotels
+            const hotels = await fetchNearbyPlaces(beachName, 'hotel');
+            hotelsList.innerHTML = hotels.length ? hotels.map(hotel => `
+                <div class="list-group-item">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="mb-0">${hotel.name}</h6>
+                            <small class="text-muted">${hotel.type.replace('_', ' ')}</small>
+                        </div>
+                        <div>
+                            ${hotel.rating ? `<span class="badge bg-warning me-2">${hotel.rating}⭐</span>` : ''}
+                            <button onclick="showDirections({
+                                name: '${hotel.name.replace(/'/g, "\\'")}',
+                                lat: ${hotel.lat},
+                                lon: ${hotel.lon}
+                            })" class="btn btn-sm btn-outline-secondary"
+                               title="Get Directions">
+                                <i class="fas fa-directions"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `).join('') : '<div class="text-center text-muted py-3">No hotels found nearby</div>';
+
+            // Fetch restaurants
+            const restaurants = await fetchNearbyPlaces(beachName, 'restaurant');
+            restaurantsList.innerHTML = restaurants.length ? restaurants.map(restaurant => `
+                <div class="list-group-item">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h6 class="mb-0">${restaurant.name}</h6>
+                        <div>
+                            ${restaurant.cuisine ? `<span class="badge bg-info me-2">${restaurant.cuisine}</span>` : ''}
+                            <button onclick="showDirections({
+                                name: '${restaurant.name.replace(/'/g, "\\'")}',
+                                lat: ${restaurant.lat},
+                                lon: ${restaurant.lon}
+                            })" class="btn btn-sm btn-outline-secondary"
+                               title="Get Directions">
+                                <i class="fas fa-directions"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `).join('') : '<div class="text-center text-muted py-3">No restaurants found nearby</div>';
+        } catch (error) {
+            console.error('Error:', error);
+            const errorMessage = `
+                <div class="text-center text-danger py-3">
+                    <i class="fas fa-exclamation-circle mb-2"></i>
+                    <p class="mb-0">${error.message}</p>
+                </div>
+            `;
+            hotelsList.innerHTML = errorMessage;
+            restaurantsList.innerHTML = errorMessage;
+        }
+    }
+
+    // Add enter key support for search
+    document.getElementById('beachSearch').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            searchNearbyPlaces();
+        }
+    });
+
+    let currentDestination;
+    let directionsMap;
+    let routeLayer;
+
+    // Load Leaflet JS dynamically
+    function loadLeaflet() {
+        return new Promise((resolve, reject) => {
+            if (window.L) {
+                resolve(window.L);
+                return;
+            }
+
+            const script = document.createElement('script');
+            script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+            script.integrity = 'sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=';
+            script.crossOrigin = '';
+            script.onload = () => resolve(window.L);
+            script.onerror = reject;
+            document.head.appendChild(script);
+        });
+    }
+
+    async function showDirections(place) {
+        currentDestination = place;
+        const modal = new bootstrap.Modal(document.getElementById('directionsModal'));
+        
+        // Update destination details
+        document.getElementById('destinationName').textContent = place.name;
+        document.getElementById('destinationCoords').textContent = `${place.lat}, ${place.lon}`;
+        
+        // Show modal and initialize map
+        modal.show();
+        modal._element.addEventListener('shown.bs.modal', async function () {
+            try {
+                // Show loader
+                document.getElementById('mapLoader').style.display = 'flex';
+                
+                // Ensure Leaflet is loaded
+                await loadLeaflet();
+                
+                if (!directionsMap) {
+                    directionsMap = L.map('directionsMap');
+                    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+                        attribution: '©OpenStreetMap, ©CartoDB',
+                        maxZoom: 19
+                    }).addTo(directionsMap);
+                }
+                updateDirectionsRoute();
+            } catch (error) {
+                console.error('Error initializing map:', error);
+                document.getElementById('mapLoader').style.display = 'none';
+            }
+        });
+    }
+
+    function updateDirectionsRoute() {
+        if (!currentDestination || !navigator.geolocation) return;
+        
+        // Show loader
+        document.getElementById('mapLoader').style.display = 'flex';
+        
+        navigator.geolocation.getCurrentPosition((position) => {
+            const userLat = position.coords.latitude;
+            const userLon = position.coords.longitude;
+            const travelMode = document.getElementById('travelMode').value;
+            
+            // Clear existing route and markers
+            if (routeLayer) {
+                directionsMap.removeLayer(routeLayer);
+            }
+            directionsMap.eachLayer((layer) => {
+                if (layer instanceof L.Marker) {
+                    directionsMap.removeLayer(layer);
+                }
+            });
+
+            // Add markers for start and destination
+            const startMarker = L.marker([userLat, userLon], {
+                icon: L.divIcon({
+                    className: 'start-marker',
+                    html: '<i class="fas fa-map-marker-alt text-success"></i>',
+                    iconSize: [24, 24],
+                    iconAnchor: [12, 24]
+                })
+            }).addTo(directionsMap).bindPopup('Your Location');
+
+            const destMarker = L.marker([currentDestination.lat, currentDestination.lon], {
+                icon: L.divIcon({
+                    className: 'end-marker',
+                    html: '<i class="fas fa-map-marker-alt text-danger"></i>',
+                    iconSize: [24, 24],
+                    iconAnchor: [12, 24]
+                })
+            }).addTo(directionsMap).bindPopup(currentDestination.name);
+
+            // Fetch route from OSRM
+            fetch(`https://router.project-osrm.org/route/v1/${travelMode}/${userLon},${userLat};${currentDestination.lon},${currentDestination.lat}?overview=full&geometries=geojson`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.routes && data.routes[0]) {
+                        routeLayer = L.geoJSON(data.routes[0].geometry, {
+                            style: {
+                                color: '#0d6efd',
+                                weight: 6,
+                                opacity: 0.6
+                            }
+                        }).addTo(directionsMap);
+
+                        // Fit map to show the entire route
+                        const bounds = L.latLngBounds([
+                            [userLat, userLon],
+                            [currentDestination.lat, currentDestination.lon]
+                        ]);
+                        directionsMap.fitBounds(bounds.pad(0.1));
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching route:', error);
+                })
+                .finally(() => {
+                    // Hide loader
+                    document.getElementById('mapLoader').style.display = 'none';
+                });
+        }, (error) => {
+            console.error('Error getting location:', error);
+            // Center map on destination if location access is denied
+            directionsMap.setView([currentDestination.lat, currentDestination.lon], 15);
+            // Hide loader
+            document.getElementById('mapLoader').style.display = 'none';
+        });
+    }
+
+    function openGoogleMaps() {
+        if (!currentDestination || !navigator.geolocation) return;
+        
+        navigator.geolocation.getCurrentPosition((position) => {
+            const userLat = position.coords.latitude;
+            const userLon = position.coords.longitude;
+            const travelMode = document.getElementById('travelMode').value;
+            
+            const googleMapsUrl = `https://www.google.com/maps/dir/?api=1` + 
+                `&origin=${userLat},${userLon}` +
+                `&destination=${currentDestination.lat},${currentDestination.lon}` +
+                `&travelmode=${travelMode}`;
+            
+            window.open(googleMapsUrl, '_blank');
+        }, (error) => {
+            const googleMapsUrl = `https://www.google.com/maps/search/?api=1&query=${currentDestination.lat},${currentDestination.lon}`;
+            window.open(googleMapsUrl, '_blank');
+        });
+    }
+
+    // Update the marker popup content
+    function addMarkersToMap(places, type) {
+        const icon = type === 'hotel' ? 'fa-hotel' : 'fa-utensils';
+        const color = type === 'hotel' ? 'text-warning' : 'text-danger';
+        
+        places.forEach(place => {
+            if (place.lat && place.lon) {
+                const marker = L.marker([place.lat, place.lon], {
+                    icon: L.divIcon({
+                        className: `${type}-marker`,
+                        html: `<i class="fas ${icon} ${color}"></i>`,
+                        iconSize: [24, 24],
+                        iconAnchor: [12, 24]
+                    })
+                });
+                
+                marker.bindPopup(`
+                    <strong>${place.name}</strong><br>
+                    ${place.rating ? `Rating: ${place.rating}⭐<br>` : ''}
+                    ${place.cuisine ? `Cuisine: ${place.cuisine}<br>` : ''}
+                    <button onclick="showDirections({
+                        name: '${place.name.replace(/'/g, "\\'")}',
+                        lat: ${place.lat},
+                        lon: ${place.lon}
+                    })" class="btn btn-sm btn-outline-primary mt-2">
+                        <i class="fas fa-directions me-1"></i>Get Directions
+                    </button>
+                `);
+                
+                markers.addLayer(marker);
+            }
+        });
+    }
+    </script>
+
+<style>
+.accommodation-img {
+    height: 200px;
+    object-fit: cover;
+}
+.list-group-item {
+    transition: background-color 0.2s;
+}
+.list-group-item:hover {
+    background-color: #f8f9fa;
+}
+
+.start-marker i,
+.end-marker i {
+    font-size: 24px;
+}
+
+#directionsMap {
+    border-radius: 4px;
+    border: 1px solid #dee2e6;
+    height: 450px;
+}
+
+.map-loader {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(255, 255, 255, 0.8);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.modal-body .card {
+    height: 100%;
+}
+
+.btn-google {
+    background-color: #4285f4;
+    color: white;
+}
+
+.btn-google:hover {
+    background-color: #357abd;
+    color: white;
+}
+
+/* Override Leaflet styles */
+.leaflet-control-attribution {
+    font-size: 10px;
+}
+
+.leaflet-control-zoom {
+    border: none !important;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1) !important;
+}
+
+.leaflet-control-zoom a {
+    background-color: white !important;
+    color: #333 !important;
+}
+</style> 

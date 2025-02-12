@@ -55,6 +55,11 @@
                                 <i class="fas fa-home me-2"></i>Accommodations
                             </a>
                         </li>
+                        <li class="nav-item">
+                            <a class="nav-link" id="weather-tab" data-bs-toggle="tab" href="#weather" role="tab">
+                                <i class="fas fa-cloud-sun me-2"></i>Weather
+                            </a>
+                        </li>
                     </ul>
                 </div>
                 <div class="card-body">
@@ -67,6 +72,11 @@
                         <!-- Accommodations Tab -->
                         <div class="tab-pane fade" id="accommodations" role="tabpanel">
                             {% include 'main/includes/_accommodations.html' %}
+                        </div>
+
+                        <!-- Weather Tab -->
+                        <div class="tab-pane fade" id="weather" role="tabpanel">
+                            {% include 'main/includes/_weather.html' %}
                         </div>
                     </div>
                 </div>

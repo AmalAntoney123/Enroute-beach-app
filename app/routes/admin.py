@@ -223,6 +223,8 @@ def add_beach():
             'location': request.form.get('location'),
             'district': request.form.get('district'),
             'description': request.form.get('description'),
+            'latitude': float(request.form.get('latitude')),
+            'longitude': float(request.form.get('longitude')),
             'is_active': True,
             'created_at': datetime.utcnow(),
             'created_by': current_user.username

@@ -1,0 +1,123 @@
+<div class="mb-3">
+    <select class="form-select" id="beachWeatherSelect">
+        <option value="">Select a beach...</option>
+        {% for beach in beaches %}
+            <option value="{{ beach.district }}" data-name="{{ beach.name }}">
+                {{ beach.name }} ({{ beach.district }})
+            </option>
+        {% endfor %}
+    </select>
+</div>
+
+<div id="weatherContainer" class="d-none">
+    <div class="card">
+        <div class="card-body">
+            <div class="d-flex align-items-center mb-3">
+                <h4 class="mb-0 me-3" id="beachName"></h4>
+                <img id="weatherIcon" src="" alt="Weather Icon" class="weather-icon">
+            </div>
+            <div class="row">
+                <div class="col-md-6">
+                    <p class="mb-2"><i class="fas fa-temperature-high me-2"></i>Temperature: <span id="temperature"></span>°C</p>
+                    <p class="mb-2"><i class="fas fa-tint me-2"></i>Humidity: <span id="humidity"></span>%</p>
+                </div>
+                <div class="col-md-6">
+                    <p class="mb-2"><i class="fas fa-wind me-2"></i>Wind Speed: <span id="windSpeed"></span> m/s</p>
+                    <p class="mb-2"><i class="fas fa-cloud me-2"></i>Conditions: <span id="conditions"></span></p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="weatherLoading" class="text-center py-4 d-none">
+    <div class="spinner-border text-primary" role="status">
+        <span class="visually-hidden">Loading...</span>
+    </div>
+</div>
+
+<div id="noBeachSelected" class="text-center text-muted py-4">
+    <i class="fas fa-cloud-sun fa-3x mb-3"></i>
+    <p>Select a beach to view weather information</p>
+</div>
+
+<style>
+.weather-icon {
+    width: 50px;
+    height: 50px;
+}
+</style>
+
+<script>
+// Add debug log to check if API key is loaded
+const OPENWEATHER_API_KEY = '{{ config.OPENWEATHER_API_KEY }}';
+console.log('API Key loaded:', OPENWEATHER_API_KEY ? 'Yes' : 'No');
+
+document.getElementById('beachWeatherSelect').addEventListener('change', function() {
+    const selectedOption = this.options[this.selectedIndex];
+    const district = this.value;
+    const beachName = selectedOption.dataset.name;
+    
+    if (district) {
+        showWeather(district, beachName);
+    } else {
+        document.getElementById('weatherContainer').classList.add('d-none');
+        document.getElementById('noBeachSelected').classList.remove('d-none');
+    }
+});
+
+function showWeather(district, beachName) {
+    // Add debug log for API key in use
+    console.log('Using API key:', OPENWEATHER_API_KEY);
+    
+    const weatherContainer = document.getElementById('weatherContainer');
+    const loadingElement = document.getElementById('weatherLoading');
+    const noBeachElement = document.getElementById('noBeachSelected');
+    
+    weatherContainer.classList.add('d-none');
+    loadingElement.classList.remove('d-none');
+    noBeachElement.classList.add('d-none');
+    
+    const districtMapping = {
+        'Thiruvananthapuram': 'Trivandrum',
+        'Kozhikode': 'Kozhikode',
+    };
+    
+    const searchDistrict = districtMapping[district] || district;
+    const searchQuery = `${searchDistrict}, Kerala, India`;
+    
+    console.log('Searching weather for:', searchQuery);
+    console.log('Full API URL:', `https://api.openweathermap.org/data/2.5/weather?q=${encodeURIComponent(searchQuery)}&appid=${OPENWEATHER_API_KEY}&units=metric`);
+    
+    fetch(`https://api.openweathermap.org/data/2.5/weather?q=${encodeURIComponent(searchQuery)}&appid=${OPENWEATHER_API_KEY}&units=metric`)
+        .then(response => {
+            if (!response.ok) {
+                if (response.status === 401) {
+                    throw new Error('Invalid API key. Please check your configuration.');
+                }
+                if (response.status === 404) {
+                    throw new Error('Location not found. Please try a different beach.');
+                }
+                throw new Error('Weather service unavailable. Please try again later.');
+            }
+            return response.json();
+        })
+        .then(data => {
+            document.getElementById('beachName').textContent = beachName;
+            document.getElementById('temperature').textContent = Math.round(data.main.temp);
+            document.getElementById('humidity').textContent = data.main.humidity;
+            document.getElementById('windSpeed').textContent = data.wind.speed;
+            document.getElementById('conditions').textContent = data.weather[0].description;
+            document.getElementById('weatherIcon').src = `https://openweathermap.org/img/w/${data.weather[0].icon}.png`;
+            
+            weatherContainer.classList.remove('d-none');
+            loadingElement.classList.add('d-none');
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error fetching weather data: ' + error.message);
+            loadingElement.classList.add('d-none');
+            noBeachElement.classList.remove('d-none');
+        });
+}
+</script> 

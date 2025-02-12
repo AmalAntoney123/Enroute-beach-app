@@ -5,6 +5,7 @@ from werkzeug.utils import secure_filename
 import os
 from app import mongo
 from datetime import datetime
+from flask import current_app
 
 main_bp = Blueprint('main', __name__)
 
@@ -74,7 +75,8 @@ def dashboard():
                          alerts=alerts,
                          beaches=beaches,
                          districts=districts,
-                         accommodations=accommodations)
+                         accommodations=accommodations,
+                         config=current_app.config)
 
 @main_bp.route('/alerts')
 @login_required
@@ -118,7 +120,11 @@ def alerts():
 @login_required
 def accommodations():
     accommodations = list(mongo.db.accommodations.find({'is_active': True}))
-    return render_template('main/accommodations.html', accommodations=accommodations)
+    beaches = list(mongo.db.beaches.find({'is_active': True}))
+    print(f"Found {len(accommodations)} accommodations and {len(beaches)} beaches")
+    return render_template('main/accommodations.html', 
+                         accommodations=accommodations,
+                         beaches=beaches)
 
 @main_bp.route('/update_profile', methods=['POST'])
 @login_required
